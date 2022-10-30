@@ -10,6 +10,7 @@ def load_reddit_cred_file():
     #check if credential file exists
     if not os.path.exists(cred_filename):
         print("The reddit_creds.json file does not exist in this folder. Please create this file and rerun this script.\n")
+        print("Please follow the instructions on the following website: https://www.jcchouinard.com/get-reddit-api-credentials-with-praw/\n")
         sys.exit(1)
 
     #read the credential file
