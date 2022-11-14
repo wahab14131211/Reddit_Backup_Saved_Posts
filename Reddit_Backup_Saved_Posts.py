@@ -1,10 +1,10 @@
 #Import Modules
-import json, praw, sys, os, inspect
+import json, praw, sys, os
 import datetime as datetime
 from pprint import pprint
 
 
-def load_reddit_cred_file():
+def load_reddit_cred_file(): #TODO: Change cred fileformat to python config. Add SQL credentials into this file as well, and create a template file
     cred_filename = "reddit_creds.json"
     expected_fields = ["client_id", "client_secret", "user_agent", "redirect_uri", "refresh_token"]
 
