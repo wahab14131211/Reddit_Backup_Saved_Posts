@@ -1,30 +1,36 @@
 #Import Modules
-import json, praw, sys, os
+import configparser, praw, sys, os
 import datetime as datetime
 from pprint import pprint
 
 
-def load_reddit_cred_file(): #TODO: Change cred fileformat to python config. Add SQL credentials into this file as well, and create a template file
-    cred_filename = "reddit_creds.json"
-    expected_fields = ["client_id", "client_secret", "user_agent", "redirect_uri", "refresh_token"]
+def load_cred_file(): #TODO: Change cred fileformat to python config. Add SQL credentials into this file as well, and create a template file
+    cred_filename = "creds.ini"
+    expected_creds = {
+        "reddit" : ["client_id", "client_secret", "user_agent", "redirect_uri", "refresh_token"],
+        "sql" : ["host","username","password"]
+    }
 
     #check if credential file exists
     if not os.path.exists(cred_filename):
-        print("The reddit_creds.json file does not exist in this folder. Please create this file and rerun this script.\n")
-        print("Please follow the instructions on the following website: https://www.jcchouinard.com/get-reddit-api-credentials-with-praw/\n")
+        print("The creds.ini file does not exist in this folder. Please create this file and rerun this script.\n")
+        print("Please follow the instructions on the following website: https://www.jcchouinard.com/get-reddit-api-credentials-with-praw/ to populate the reddit section of the config file, and use your mySQL user info for the sql section of the config file\n")
         sys.exit(1)
 
     #read the credential file
-    with open(cred_filename) as file:
-        creds = json.load(file)
+    creds = configparser.ConfigParser()
+    creds.read(cred_filename)
 
     #error check credentials to make sure all needed keys exist
-    for expected_field in expected_fields:
-        if expected_field not in creds:
-            print(f"The reddit_creds.json file was expected to have the \"{expected_field}\" key. Please add this key to the file and rerun this script.\n")
-            sys.exit(1)
+    for expected_table in expected_creds.keys():
+        if expected_table not in creds.keys():
+            print(f"the creds.ini file was expected to have the \"{expected_table}\" table. Please add this table to the file and rerun this script.\n")
+        for expected_field in expected_creds[expected_table]:
+            if expected_field not in creds[expected_table]:
+                print(f"The creds.ini file was expected to have the \"{expected_table}\" table with the \"{expected_field}\" key. Please add this table/key to the file and rerun this script.\n")
+                sys.exit(1)
 
-    print("Reddit credential file loaded successfully.\n", file=sys.stderr)
+    print("Credential file loaded successfully.\n", file=sys.stderr)
     return creds
 
 def parse_submission_type_post(dict,post):
@@ -78,12 +84,12 @@ def parse_comment_type_post(dict,comment):
 
 
 def main():
-    reddit_creds = load_reddit_cred_file()
+    creds = load_cred_file()
     reddit = praw.Reddit(
-        client_id = reddit_creds['client_id'],
-        client_secret = reddit_creds['client_secret'],
-        user_agent = reddit_creds['user_agent'],
-        refresh_token = reddit_creds['refresh_token']
+        client_id = creds['reddit']['client_id'],
+        client_secret = creds['reddit']['client_secret'],
+        user_agent = creds['reddit']['user_agent'],
+        refresh_token = creds['reddit']['refresh_token']
     )
 
     try:
