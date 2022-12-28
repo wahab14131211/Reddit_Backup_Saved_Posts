@@ -14,7 +14,7 @@ def main():
 
     #connect to google sheets APIs
     scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets', "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-    google_creds = ServiceAccountCredentials.from_json_keyfile_name("misc/Google_Creds.json", scope)
+    google_creds = ServiceAccountCredentials.from_json_keyfile_name("Misc/Google_Creds.json", scope)
     client = gspread.authorize(google_creds)
     spreadsheet_files = client.list_spreadsheet_files()
     spreadsheet_files = [spreadsheet_file["name"] for spreadsheet_file in spreadsheet_files]
@@ -43,7 +43,6 @@ def main():
             url = row[6]
             url = url.replace(r'/?utm_source=ifttt','')
             reddit_urls.append(url)
-
 
     saved_post_dict = dict()
     total_saved_posts = len(reddit_urls)
