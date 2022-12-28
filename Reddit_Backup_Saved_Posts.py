@@ -1,11 +1,10 @@
 #Import Modules
-import configparser, praw, sys, os
+import configparser, praw, sys, os, mysql.connector, prawcore
 import datetime as datetime
 from pprint import pprint
 
 
-def load_cred_file(): #TODO: Change cred fileformat to python config. Add SQL credentials into this file as well, and create a template file
-    cred_filename = "creds.ini"
+def load_cred_file(cred_filename):
     expected_creds = {
         "reddit" : ["client_id", "client_secret", "user_agent", "redirect_uri", "refresh_token"],
         "sql" : ["host","username","password"]
@@ -34,16 +33,20 @@ def load_cred_file(): #TODO: Change cred fileformat to python config. Add SQL cr
     return creds
 
 def parse_submission_type_post(dict,post):
-    if post.id is None or post.title is None or post.url is None:
-        print(f"The post {post} does not contain a valid id or url content. Skipping...\n")
-        return 1
+    try:
+        if post.id is None or post.title is None or post.url is None:
+            print(f"The post {post} does not contain a valid id or url content. Skipping...\n")
+            return 1
 
-    if post.selftext == '[deleted]':
-        print(f"The post {post} was deleted. Skipping...\n")
-        return 1
+        if post.selftext == '[deleted]':
+            print(f"The post {post} was deleted. Skipping...\n")
+            return 1
 
-    if post.id in dict:
-        print(f"The id {saved_post.id} already exists in the dict. This id should be unique. Please file a bug on the Github on this issue.\n")
+        if post.id in dict:
+            print(f"The id {post.id} already exists in the dict. Skipping...\n")
+            return 1
+    except (prawcore.exceptions.Forbidden, prawcore.exceptions.NotFound):
+        print (f"The post {post} does not exist. Skipping...\n")
         return 1
 
     dict[post.id]={}
@@ -52,7 +55,7 @@ def parse_submission_type_post(dict,post):
     dict[post.id]['Author'] = "Unknown"
     dict[post.id]['Title'] = post.title
     dict[post.id]['URL'] = post.url
-    dict[post.id]['Is_Self'] = post.is_self
+    dict[post.id]['Is_Self'] = 1 if post.is_self else 0
     dict[post.id]['Self_Text'] = post.selftext_html
     dict[post.id]['Subreddit'] = post.subreddit.display_name
     dict[post.id]['Permalink'] = post.permalink
@@ -74,6 +77,7 @@ def parse_comment_type_post(dict,comment):
     dict[comment.id]['PostType'] = 'Comment'
     dict[comment.id]['Body'] = comment.body_html
     dict[comment.id]['DateTime'] = datetime.date.fromtimestamp(comment.created_utc).isoformat()
+    dict[comment.id]['Author'] = "Unknown"
     dict[comment.id]['Permalink'] = comment.permalink
     dict[comment.id]['LinkTitle'] = comment.link_title
     dict[comment.id]['LinkUrl'] = comment.link_url
@@ -82,24 +86,73 @@ def parse_comment_type_post(dict,comment):
         dict[comment.id]['Author'] = comment.author.name
     return 0
 
+def upload_posts_to_db(db,dict):
+    #define db cursor
+    cursor = db.cursor()
+
+    #define lists to pass to the executemany commands
+    saved_posts_sql_table_params = list()
+    saved_submissions_sql_table_params = list()
+    saved_comments_sql_table_params = list()
+
+    #loop through saved_posts and populate the above lists
+    for saved_post in dict:
+        saved_posts_sql_table_params.append([
+            saved_post,
+            dict[saved_post]['PostType'],
+            dict[saved_post]['Permalink'],
+            dict[saved_post]['Author'],
+            dict[saved_post]['Subreddit']
+        ])
+        if dict[saved_post]['PostType'] == 'Submission':
+            saved_submissions_sql_table_params.append([
+                saved_post,
+                dict[saved_post]['Title'],
+                dict[saved_post]['URL'],
+                dict[saved_post]['Is_Self'],
+                dict[saved_post]['Self_Text'],
+                dict[saved_post]['Domain']
+            ])
+        elif dict[saved_post]['PostType'] == 'Comment':
+            saved_comments_sql_table_params.append([
+                saved_post,
+                dict[saved_post]['Body'],
+                dict[saved_post]['LinkTitle']
+            ])
+        else:
+            print(f"The following post type is not supported by this script: '{type(saved_post).__name__}'. Please file a bug on the Github for an update.\n")
+
+    saved_posts_sql_string = "INSERT IGNORE INTO RedditBackup.SavedPosts (ID, Type, Permalink, Author, Subreddit) VALUES (%s, %s, %s, %s, %s)"
+    cursor.executemany(saved_posts_sql_string, saved_posts_sql_table_params)
+    db.commit()
+
+    saved_submissions_sql_string = "INSERT IGNORE INTO RedditBackup.SavedSubmissions (ID, Title, Url, IsSelf, SelfText, Domain) VALUES (%s, %s, %s, %s, %s, %s)"
+    cursor.executemany(saved_submissions_sql_string, saved_submissions_sql_table_params)
+    db.commit()
+
+    saved_comment_sql_string = "INSERT IGNORE INTO RedditBackup.SavedComments (ID, Body, LinkTitle) VALUES (%s, %s, %s)"
+    cursor.executemany(saved_comment_sql_string, saved_comments_sql_table_params)
+    db.commit()
+    return 0
 
 def main():
-    creds = load_cred_file()
+    creds = load_cred_file('./creds.ini')
+
+    #Connect to Reddit API and test connection
     reddit = praw.Reddit(
         client_id = creds['reddit']['client_id'],
         client_secret = creds['reddit']['client_secret'],
         user_agent = creds['reddit']['user_agent'],
         refresh_token = creds['reddit']['refresh_token']
     )
-
     try:
         reddit_user = reddit.user.me()
     except:
         print("Not able to connect to reddit. Please make sure your API credentials are correct.\n")
         return 1
-
     print(f"Reddit username is {reddit_user.name}\n", file=sys.stderr)
 
+    #find all saved posts (reddit only returns 2000 most recent saved posts) and populate the saved_post_dict dictionary
     saved_post_dict=dict()
     for saved_post in reddit_user.saved(limit=None):
         if type(saved_post).__name__ == 'Submission':
@@ -107,15 +160,16 @@ def main():
         elif type(saved_post).__name__ == 'Comment':
             parse_comment_type_post(saved_post_dict,saved_post)
         else:
-            print("The following post type is not supported by this script. Please file a bug on the Github for an update.\n")
+            print(f"The following post type is not supported by this script: '{type(saved_post).__name__}'. Please file a bug on the Github for an update.\n")
 
-    pprint(saved_post_dict)
+    #connect to mysql database
+    mydb = mysql.connector.connect(
+        host = creds['sql']['host'],
+        user = creds['sql']['username'],
+        password = creds['sql']['password']
+    )
 
-#        if saved_post.id not in test_list:
-#            print(f"NEW: Post ID is: {saved_post.id}\n")
-#            test_list.append(saved_post.id)
-#        else:
-#            print(f"DUPLICATED: post ID is: {saved_post.id}, Post creation datetime is: {datetime.date.fromtimestamp(saved_post.created_utc)}, OP is {saved_post.author.name}, Title is {saved_post.title}\n")
+    upload_posts_to_db(mydb, saved_post_dict)
 
 if __name__ == "__main__":
     sys.exit(main())

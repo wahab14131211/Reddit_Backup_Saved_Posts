@@ -1,2 +1,4 @@
 /creds.ini
 /notes*.txt
+/Misc/Google_Creds.json
+__pycache__
