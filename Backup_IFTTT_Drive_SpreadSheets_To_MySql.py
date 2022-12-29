@@ -56,7 +56,11 @@ def main():
 
     with open('saved_post_dict.json','w') as fp:
         json.dump(saved_post_dict,fp,indent=4)
-    pprint.pprint(saved_post_dict)
+
+    #If something went wrong in the upload step, comment out all lines in the main above this, and uncomment the 3 lines below this to reload the saved_post_dict backup cred_filename
+    #reddit_sql_creds = load_cred_file('creds.ini')
+    #with open('saved_post_dict.json','r') as fp:
+    #    saved_post_dict = json.load(fp)
 
     #connect to mysql database
     mydb = mysql.connector.connect(
