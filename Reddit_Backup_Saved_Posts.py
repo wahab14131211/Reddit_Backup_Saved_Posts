@@ -29,7 +29,7 @@ def load_cred_file(cred_filename):
                 print(f"The creds.ini file was expected to have the \"{expected_table}\" table with the \"{expected_field}\" key. Please add this table/key to the file and rerun this script.\n")
                 sys.exit(1)
 
-    print("Credential file loaded successfully.\n", file=sys.stderr)
+    print("Credential file loaded successfully.", file=sys.stderr)
     return creds
 
 def parse_submission_type_post(dict,post):
@@ -182,6 +182,7 @@ def main():
     upload_posts_to_db(mydb, cursor, saved_post_dict)
     cursor.close()
     mydb.close()
+    print("Successfully uploaded saved posts to the database. Closing...")
 
 if __name__ == "__main__":
     sys.exit(main())
