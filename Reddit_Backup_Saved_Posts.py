@@ -86,9 +86,7 @@ def parse_comment_type_post(dict,comment):
         dict[comment.id]['Author'] = comment.author.name
     return 0
 
-def upload_posts_to_db(db,dict):
-    #define db cursor
-    cursor = db.cursor()
+def upload_posts_to_db(db,cursor,dict):
 
     #define lists to pass to the executemany commands
     saved_posts_sql_table_params = list()
@@ -133,7 +131,14 @@ def upload_posts_to_db(db,dict):
     saved_comment_sql_string = "INSERT IGNORE INTO RedditBackup.SavedComments (ID, Body, LinkTitle) VALUES (%s, %s, %s)"
     cursor.executemany(saved_comment_sql_string, saved_comments_sql_table_params)
     db.commit()
+
     return 0
+
+def check_if_post_in_db (db, cursor, post_id):
+    cursor.execute(f"SELECT ID FROM RedditBackup.SavedPosts WHERE ID='{post_id}'")
+    if cursor.fetchone():
+        return True
+    return False
 
 def main():
     creds = load_cred_file('./creds.ini')
@@ -152,16 +157,6 @@ def main():
         return 1
     print(f"Reddit username is {reddit_user.name}\n", file=sys.stderr)
 
-    #find all saved posts (reddit only returns 2000 most recent saved posts) and populate the saved_post_dict dictionary
-    saved_post_dict=dict()
-    for saved_post in reddit_user.saved(limit=None):
-        if type(saved_post).__name__ == 'Submission':
-            parse_submission_type_post(saved_post_dict,saved_post)
-        elif type(saved_post).__name__ == 'Comment':
-            parse_comment_type_post(saved_post_dict,saved_post)
-        else:
-            print(f"The following post type is not supported by this script: '{type(saved_post).__name__}'. Please file a bug on the Github for an update.\n")
-
     #connect to mysql database
     mydb = mysql.connector.connect(
         host = creds['sql']['host'],
@@ -169,7 +164,25 @@ def main():
         password = creds['sql']['password']
     )
 
-    upload_posts_to_db(mydb, saved_post_dict)
+    #find all saved posts (reddit only returns 2000 most recent saved posts) and populate the saved_post_dict dictionary
+    saved_post_dict=dict()
+    cursor = mydb.cursor()
+    for saved_post in reddit_user.saved(limit=None):
+        if check_if_post_in_db(mydb, cursor, saved_post.id):
+            print(f"Post {saved_post} found in database. Skipping...")
+            next
+        if type(saved_post).__name__ == 'Submission':
+            parse_submission_type_post(saved_post_dict,saved_post)
+        elif type(saved_post).__name__ == 'Comment':
+            parse_comment_type_post(saved_post_dict,saved_post)
+        else:
+            print(f"The following post type is not supported by this script: '{type(saved_post).__name__}'. Please file a bug on the Github for an update.\n")
+
+    pprint(saved_post_dict)
+    print(f"number of saved posts still avalible in reddit = {len(saved_post_dict)}")
+    #upload_posts_to_db(mydb, cursor, saved_post_dict)
+    cursor.close()
+    mydb.close()
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -68,8 +68,10 @@ def main():
         user = reddit_sql_creds['sql']['username'],
         password = reddit_sql_creds['sql']['password']
     )
-
-    upload_posts_to_db(mydb, saved_post_dict)
+    cursor = mydb.cursor()
+    upload_posts_to_db(mydb, cursor, saved_post_dict)
+    cursor.close()
+    mydb.close()
 
 if __name__ == "__main__":
     sys.exit(main())
