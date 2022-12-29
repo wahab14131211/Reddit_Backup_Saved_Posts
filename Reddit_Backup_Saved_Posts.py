@@ -170,7 +170,7 @@ def main():
     for saved_post in reddit_user.saved(limit=None):
         if check_if_post_in_db(mydb, cursor, saved_post.id):
             #print(f"Post {saved_post} found in database. Skipping...")
-            next
+            continue
         print(f"Post {saved_post} was not found in the database. Start parsing and add to hash...")
         if type(saved_post).__name__ == 'Submission':
             parse_submission_type_post(saved_post_dict,saved_post)
