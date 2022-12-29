@@ -178,9 +178,7 @@ def main():
         else:
             print(f"The following post type is not supported by this script: '{type(saved_post).__name__}'. Please file a bug on the Github for an update.\n")
 
-    pprint(saved_post_dict)
-    print(f"number of saved posts still avalible in reddit = {len(saved_post_dict)}")
-    #upload_posts_to_db(mydb, cursor, saved_post_dict)
+    upload_posts_to_db(mydb, cursor, saved_post_dict)
     cursor.close()
     mydb.close()
 
