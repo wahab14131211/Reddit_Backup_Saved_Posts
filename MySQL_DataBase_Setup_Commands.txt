@@ -1,5 +1,5 @@
 CREATE DATABASE RedditBackup;
-CREATE TABLE `RedditBackup`.`SavedPosts` ( `ID` VARCHAR(32) NOT NULL , `Type` ENUM('Submission','Comments') NOT NULL , `DateTime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP , `Permalink` VARCHAR(1024) NOT NULL , `Author` VARCHAR(32) NOT NULL , `Subreddit` VARCHAR(32) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;
+CREATE TABLE `RedditBackup`.`SavedPosts` ( `ID` VARCHAR(32) NOT NULL , `Type` ENUM('Submission','Comment') NOT NULL , `DateTime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP , `Permalink` VARCHAR(1024) NOT NULL , `Author` VARCHAR(32) NOT NULL , `Subreddit` VARCHAR(32) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;
 CREATE TABLE `RedditBackup`.`SavedSubmissions` ( `ID` VARCHAR(32) NOT NULL , `Title` VARCHAR(300) NOT NULL , `Url` VARCHAR(256) NOT NULL , `IsSelf` BOOLEAN NOT NULL , `SelfText` TEXT NOT NULL , `Domain` VARCHAR(256) NOT NULL , FOREIGN KEY (ID) REFERENCES SavedPosts(ID) ) ENGINE = InnoDB;
 CREATE TABLE `RedditBackup`.`SavedComments` ( `ID` VARCHAR(32) NOT NULL , `Body` VARCHAR(10000) NOT NULL , `LinkTitle` VARCHAR(300) NOT NULL , FOREIGN KEY (ID) REFERENCES SavedPosts(ID) ) ENGINE = InnoDB;
 CREATE USER 'ScriptBot'@'localhost' IDENTIFIED BY '<create_password_here>';
